@@ -1,0 +1,63 @@
+const mongoose = require('mongoose');
+
+const reviewSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Liên kết với tài khoản người mua
+    name: { type: String, required: true }, // Tên người bình luận
+    rating: { type: Number, required: true }, // Số sao (1-5)
+    comment: { type: String, required: true }, // Nội dung
+}, { timestamps: true });
+
+const ProductSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: [true, 'Vui lòng nhập tên sản phẩm'],
+        trim: true
+    },
+    importPrice: {
+        type: Number,
+        required: true,
+        default: 0,
+        min: [0, 'Giá nhập không thể là số âm']
+    },
+    price: {
+        type: Number,
+        required: [true, 'Vui lòng nhập giá sản phẩm'],
+        default: 0
+    },
+    description: {
+        type: String,
+        required: [true, 'Vui lòng nhập mô tả sản phẩm']
+    },
+    category: {
+        type: String,
+        required: [true, 'Vui lòng chọn danh mục'],
+        enum: ['Cues', 'Tables', 'Accessories', 'Chalk', 'Services'] 
+    },
+    image: {
+        type: String, // Lưu đường dẫn ảnh hoặc URL
+        default: 'no-image.jpg'
+    },
+    stock: {
+        type: Number,
+        default: 0
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    reviews: [reviewSchema], // Mảng chứa các bình luận
+    rating: { type: Number, required: true, default: 0 }, // Điểm đánh giá trung bình
+    numReviews: { type: Number, required: true, default: 0 },
+    countInStock: {
+        type: Number,
+        required: true,
+        default: 0 // Số lượng hàng còn trong kho
+    },
+    sold: {
+        type: Number,
+        default: 0 // Số lượng đã bán (Hệ thống sẽ tự động cộng dồn khi có đơn hàng)
+    },
+    isFeatured: { type: Boolean, default: false }
+}, { timestamps: true });
+
+module.exports = mongoose.model('Product', ProductSchema);
