@@ -60,7 +60,16 @@ const Profile = () => {
 
     try {
       // 1. Thêm biến "res" để hứng dữ liệu Backend trả về
-      const res = await API.post('/users/address', { name: newAddress.name, phone: newAddress.phone, address: fullAddr, type: newAddress.type });
+      const res = await API.post('/users/address', { 
+        name: newAddress.name, 
+        phone: newAddress.phone, 
+        address: fullAddr, 
+        province: newAddress.province,
+        district: newAddress.district,
+        ward: newAddress.ward,
+        detail: newAddress.detail,
+        type: newAddress.type 
+      });
       setShowAddressModal(false);
       
       // 2. BÊ NGUYÊN DANH SÁCH ĐỊA CHỈ MỚI GÁN VÀO STATE

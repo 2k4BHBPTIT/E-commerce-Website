@@ -19,13 +19,9 @@ router.post('/register', async (req, res) => {
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'Email này đã được đăng ký!' });
 
-    // Mã hóa mật khẩu
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Tạo User mới
+    // Tạo User mới (mật khẩu sẽ được mã hóa tự động bởi pre-save hook)
     user = new User({
-      name, email, password: hashedPassword,
+      name, email, password,
       role: 'user', walletBalance: 0, luckySpins: 0, vouchers: []
     });
     await user.save();
@@ -39,7 +35,8 @@ router.post('/register', async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email, role: user.role, walletBalance: user.walletBalance, luckySpins: user.luckySpins, vouchers: user.vouchers, savedAddresses: user.savedAddresses } 
     });
   } catch (err) {
-    console.error("Lỗi đăng ký:", err);
+    console.error("Lỗi đăng ký:", err?.message);
+    console.error(err);
     res.status(500).json({ message: 'Lỗi server khi đăng ký' });
   }
 });
@@ -52,7 +49,7 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     
     // Kiểm tra tài khoản có tồn tại không
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password');
     if (!user) return res.status(400).json({ message: 'Tài khoản không tồn tại!' });
 
     // So sánh mật khẩu
@@ -302,8 +299,7 @@ router.post('/reset-password', async (req, res) => {
     if (!user) return res.status(400).json({ message: 'Mã OTP không hợp lệ hoặc đã hết hạn!' });
     if (newPassword.length < 6) return res.status(400).json({ message: 'Mật khẩu mới phải từ 6 ký tự trở lên!' });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    user.password = newPassword;
     user.resetPasswordOTP = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
@@ -324,6 +320,25 @@ router.put('/address/default/:addressId', checkAuth, async (req, res) => {
     res.json({ msg: 'Đã đặt địa chỉ mặc định!', addresses: user.savedAddresses });
   } catch (err) {
     res.status(500).json({ msg: 'Lỗi server' });
+  }
+});
+
+// API Xóa địa chỉ đã lưu
+router.delete('/address/:addressId', checkAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: 'Không tìm thấy người dùng' });
+
+    // Lọc bỏ địa chỉ có ID khớp với tham số truyền vào
+    user.savedAddresses = user.savedAddresses.filter(
+      addr => addr._id.toString() !== req.params.addressId
+    );
+
+    await user.save();
+    res.json({ msg: 'Đã xóa địa chỉ thành công', addresses: user.savedAddresses });
+  } catch (err) {
+    console.error("Lỗi xóa địa chỉ:", err);
+    res.status(500).json({ msg: 'Lỗi server khi xóa địa chỉ' });
   }
 });
 

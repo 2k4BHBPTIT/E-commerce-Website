@@ -10,11 +10,16 @@ const checkAuth = (req, res, next) => {
       return res.status(401).json({ msg: 'Vui lòng đăng nhập để tiếp tục!' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+    const decoded = jwt.verify(token, jwtSecret);
+    
     req.user = decoded; // Lưu thông tin user vào req để các API sau sử dụng
     next();
   } catch (err) {
-    res.status(401).json({ msg: 'Phiên đăng nhập hết hạn hoặc không hợp lệ!' });
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ msg: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!' });
+    }
+    res.status(401).json({ msg: 'Phiên đăng nhập không hợp lệ!' });
   }
 };
 

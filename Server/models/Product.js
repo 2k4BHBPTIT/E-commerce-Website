@@ -33,31 +33,30 @@ const ProductSchema = new mongoose.Schema({
         required: [true, 'Vui lòng chọn danh mục'],
         enum: ['Cues', 'Tables', 'Accessories', 'Chalk', 'Services'] 
     },
-    image: {
-        type: String, // Lưu đường dẫn ảnh hoặc URL
-        default: 'no-image.jpg'
-    },
-    stock: {
-        type: Number,
-        default: 0
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    reviews: [reviewSchema], // Mảng chứa các bình luận
-    rating: { type: Number, required: true, default: 0 }, // Điểm đánh giá trung bình
-    numReviews: { type: Number, required: true, default: 0 },
-    countInStock: {
-        type: Number,
-        required: true,
-        default: 0 // Số lượng hàng còn trong kho
-    },
-    sold: {
-        type: Number,
-        default: 0 // Số lượng đã bán (Hệ thống sẽ tự động cộng dồn khi có đơn hàng)
-    },
-    isFeatured: { type: Boolean, default: false }
+  image: {
+    type: String,
+    default: '/uploads/no-image.jpg'
+  },
+  stock: {
+    type: Number,
+    default: 0,
+    min: [0, 'Số lượng tồn kho không được âm']
+  },
+  reviews: [reviewSchema],
+  rating: { type: Number, required: true, default: 0, min: [0, 'Đánh giá không được âm'], max: [5, 'Đánh giá tối đa là 5 sao'] },
+  numReviews: { type: Number, required: true, default: 0, min: [0, 'Số lượng đánh giá không được âm'] },
+  countInStock: {
+    type: Number,
+    required: true,
+    default: 0,
+    min: [0, 'Số lượng tồn kho không được âm']
+  },
+  sold: {
+    type: Number,
+    default: 0,
+    min: [0, 'Số lượng đã bán không được âm']
+  },
+  isFeatured: { type: Boolean, default: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Product', ProductSchema);

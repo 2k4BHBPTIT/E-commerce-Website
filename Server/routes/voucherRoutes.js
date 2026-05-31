@@ -1,162 +1,188 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User'); // Gọi model User
-const { checkAuth } = require('../middleware/auth'); // Bắt buộc đăng nhập để dùng mã
+const User = require('../models/User');
+const { checkAuth, checkAdmin } = require('../middleware/auth');
+const SystemLog = require('../models/SystemLog');
 
-router.post('/apply', checkAuth, async (req, res) => {
+// 1. ADMIN TẠO VOUCHER MỚI
+router.post('/', checkAuth, checkAdmin, async (req, res) => {
   try {
-    const { code, cartTotal } = req.body;
+    const { userId, code, discountAmt, itemName, expiryDate } = req.body;
     
-    // 1. Tìm thông tin User và kho Voucher của họ trong DB
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ msg: 'Không tìm thấy tài khoản!' });
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: 'Người dùng không tồn tại' });
 
-    // 1b. Dọn dẹp: Xóa tất cả voucher đã hết hạn khỏi cơ sở dữ liệu (không đợi đến lúc apply)
-    const now = new Date();
-    const vouchersBeforeCleanup = user.vouchers.length;
-    user.vouchers = user.vouchers.filter(v => new Date(v.expiryDate) >= now);
-    if (user.vouchers.length !== vouchersBeforeCleanup) {
-      await user.save();
-    }
+    const newVoucher = {
+      code: code.toUpperCase(),
+      discountAmt,
+      itemName,
+      expiryDate,
+      isUsed: false,
+      createdAt: new Date(),
+      createdBy: req.user?.id || null
+    };
 
-    // 2. Lục lọi xem trong ví của user có cái mã (code) mà họ vừa nhập không
-    const voucher = user.vouchers.find(v => v.code === code.toUpperCase());
+    user.vouchers.push(newVoucher);
+    await user.save();
 
-    if (!voucher) {
-      return res.status(400).json({ msg: 'Mã không tồn tại, không thuộc về bạn hoặc đã hết hạn!' });
-    }
-
-    // 3. Kiểm tra các điều kiện: Đã dùng chưa?
-    if (voucher.isUsed) {
-      return res.status(400).json({ msg: 'Mã này bạn đã sử dụng rồi!' });
-    }
-    // Kiểm tra hết hạn (để phòng trường hợp vừa mới tạo xong đã đến hạn)
-    if (new Date(voucher.expiryDate) < now) {
-      // Xóa voucher hết hạn khỏi DB luôn
-      user.vouchers = user.vouchers.filter(v => v.code !== voucher.code);
-      await user.save();
-      return res.status(400).json({ msg: 'Rất tiếc, mã giảm giá này đã hết hạn!' });
-    }
-
-    // 4. "Dịch" tên phần thưởng (VD: "Voucher 10%" hoặc "Voucher 200K") thành tiền thật
-    let discountAmount = 0;
-    const itemName = voucher.itemName.toUpperCase(); // Tên lưu trong DB
-
-    if (itemName.includes('%')) {
-      // Nếu là mã phần trăm: Tách lấy chữ số (VD: 10) và nhân với tổng tiền
-      const percent = parseInt(itemName.replace(/[^0-9]/g, '')); 
-      discountAmount = (cartTotal * percent) / 100;
-    } 
-    else if (itemName.includes('K')) {
-      // Nếu là mã tiền mặt (K): Tách lấy chữ số (VD: 200) và nhân 1000
-      const amount = parseInt(itemName.replace(/[^0-9]/g, ''));
-      discountAmount = amount * 1000;
-    }
-
-    // Đảm bảo không bao giờ giảm giá lố qua tổng tiền đơn hàng (VD đơn 50k áp mã 200k)
-    if (discountAmount > cartTotal) {
-      discountAmount = cartTotal;
-    }
-
-    // 5. Trả tiền giảm giá về cho Frontend
-    res.json({ 
-      msg: 'Áp dụng mã thành công!', 
-      discountAmount: discountAmount,
-      code: voucher.code
+    await SystemLog.create({
+      admin: req.user?.id,
+      action: 'CREATE_VOUCHER',
+      details: `Tạo voucher ${code} cho user ${userId}`,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent') || 'Unknown'
     });
 
+    res.status(201).json({ msg: 'Voucher đã được tạo', voucher: newVoucher });
   } catch (err) {
-    console.error("Lỗi áp mã DB:", err);
-    res.status(500).json({ msg: 'Lỗi máy chủ khi xác thực mã.' });
+    console.error("Lỗi tạo voucher:", err);
+    res.status(500).json({ msg: 'Lỗi server', error: err.message });
   }
 });
 
-// 6. ĐẠO DỤC VOUCHER: LẤY TẤT CẢ VOUCHER CÒN HẠN VÀ DỌN DẠNG ĐÃ SẮP XẾP
-// (Tự động xóa voucher hết hạn mỗi khi user truy vấn)
+// 2. USER LẤY DANH SÁCH VOUCHER (TẤT CẢ)
 router.get('/mine', checkAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ msg: 'Không tìm thấy tài khoản!' });
+    const user = await User.findById(req.user.id).select('vouchers');
+    if (!user) return res.status(404).json({ msg: 'Không tìm thấy user' });
 
-    const now = new Date();
-    // Dọn dẹp: Xóa voucher hết hạn
-    const beforeCount = user.vouchers.length;
-    user.vouchers = user.vouchers.filter(v => new Date(v.expiryDate) >= now);
-    if (user.vouchers.length !== beforeCount) {
-      await user.save();
-    }
-
-    // Trả về danh sách voucher còn hạn, sắp xếp: voucher chưa dùng lên đầu, sắp theo ngày hết hạn gần nhất
-    const activeVouchers = user.vouchers
-      .filter(v => !v.isUsed)
-      .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
-
-    const usedVouchers = user.vouchers
-      .filter(v => v.isUsed)
-      .sort((a, b) => new Date(b.expiryDate) - new Date(a.expiryDate));
-
-    res.json({ 
-      vouchers: [...activeVouchers, ...usedVouchers],
-      cleaned: beforeCount - user.vouchers.length
-    });
+    res.json({ vouchers: user.vouchers });
   } catch (err) {
-    console.error("Lỗi lấy danh sách voucher:", err);
-    res.status(500).json({ msg: 'Lỗi server khi lấy danh sách voucher.' });
+    console.error("Lỗi lấy voucher:", err);
+    res.status(500).json({ msg: 'Lỗi server' });
   }
 });
 
-// 7. DỌN DẠNG LẠI MÃ VOUCHER: ĐÁNH DẤU ĐÃ DÙNG (khi order hoàn tất)
+// 3. USER ÁP DỤNG VOUCHER VÀO ĐƠN HÀNG
+router.post('/apply', checkAuth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    // Chấp nhận cả orderTotal hoặc cartTotal để linh hoạt, mặc định là 0 nếu không có
+    const orderTotal = Number(req.body.orderTotal || req.body.cartTotal) || 0;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: 'Không tìm thấy user' });
+
+    const now = new Date();
+    const voucher = user.vouchers.find(v => v.code === code.toUpperCase());
+    
+    if (!voucher) return res.status(404).json({ msg: 'Voucher không tồn tại hoặc đã hết hạn' });
+    if (voucher.isUsed) return res.status(400).json({ msg: 'Voucher đã được sử dụng' });
+    if (new Date(voucher.expiryDate) < now) {
+      return res.status(400).json({ msg: 'Voucher đã hết hạn' });
+    }
+
+    // Tính giảm giá: sử dụng trực tiếp trường discountAmt từ voucher, với xử lý bảo vệ
+    let discountAmount = 0;
+    
+    // Xử lý discountAmt từ voucher
+    if (voucher.discountAmt !== null && voucher.discountAmt !== undefined) {
+      const discountNum = Number(voucher.discountAmt);
+      if (!isNaN(discountNum) && discountNum >= 0) {
+        discountAmount = discountNum;
+      }
+    }
+    
+    // Nếu discountAmount vẫn bằng 0, thử sử dụng itemName làm dự phòng (ví dụ: "Giảm 10%", "Giảm 50K")
+    if (discountAmount === 0 && voucher.itemName) {
+      const itemName = String(voucher.itemName).toUpperCase();
+      
+      if (itemName.includes('%')) {
+        const percent = parseInt(itemName.replace(/[^0-9]/g, '')) || 0;
+        discountAmount = Math.floor((orderTotal * percent) / 100);
+      } else if (itemName.includes('K')) {
+        const amount = parseInt(itemName.replace(/[^0-9]/g, '')) || 0;
+        discountAmount = amount * 1000;
+      } else {
+        // Giả định là số tiền VNĐ trực tiếp nếu có số trong chuỗi
+        const amount = parseInt(itemName.replace(/[^0-9]/g, '')) || 0;
+        discountAmount = amount;
+      }
+    }
+    
+    // Đảm bảo discountAmount là số hợp lệ
+    if (isNaN(discountAmount) || discountAmount < 0) {
+      discountAmount = 0;
+    }
+
+    // Không giảm quá tổng tiền đơn hàng
+    discountAmount = Math.min(discountAmount, orderTotal);
+
+    res.json({ 
+      msg: 'Áp dụng mã giảm giá thành công',
+      discount: discountAmount,
+      finalTotal: Math.max(0, orderTotal - discountAmount),
+      voucher
+    });
+  } catch (err) {
+    console.error("Lỗi áp dụng voucher:", err);
+    res.status(500).json({ msg: 'Lỗi server' });
+  }
+});
+
+// 4. ĐÁNH DẤU VOUCHER ĐÃ SỬ DỤNG (sau khi order thành công)
 router.put('/use/:code', checkAuth, async (req, res) => {
   try {
     const { code } = req.params;
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ msg: 'Không tìm thấy tài khoản!' });
+    if (!user) return res.status(404).json({ msg: 'Không tìm thấy user' });
 
     const voucher = user.vouchers.find(v => v.code === code.toUpperCase());
-    if (!voucher) {
-      return res.status(404).json({ msg: 'Không tìm thấy voucher!' });
-    }
-
-    if (voucher.isUsed) {
-      return res.status(400).json({ msg: 'Voucher này đã được sử dụng!' });
-    }
-
-    if (new Date(voucher.expiryDate) < new Date()) {
-      // Xóa luôn nếu vừa check thấy hết hạn
-      user.vouchers = user.vouchers.filter(v => v.code !== code.toUpperCase());
-      await user.save();
-      return res.status(400).json({ msg: 'Voucher đã hết hạn!' });
-    }
+    if (!voucher) return res.status(404).json({ msg: 'Không tìm thấy voucher' });
+    if (voucher.isUsed) return res.status(400).json({ msg: 'Voucher đã được sử dụng' });
 
     voucher.isUsed = true;
+    voucher.usedAt = new Date();
     await user.save();
 
-    res.json({ msg: 'Voucher đã được đánh dấu là đã sử dụng', voucher });
+    res.json({ 
+      msg: 'Voucher đã được đánh dấu là đã sử dụng', 
+      voucher,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        walletBalance: user.walletBalance,
+        luckySpins: user.luckySpins,
+        vouchers: user.vouchers.filter(v => !v.isUsed) // Trả về danh sách voucher chưa dùng để Header cập nhật số lượng
+      }
+    });
   } catch (err) {
     console.error("Lỗi đánh dấu voucher đã dùng:", err);
-    res.status(500).json({ msg: 'Lỗi server khi cập nhật trạng thái voucher.' });
+    res.status(500).json({ msg: 'Lỗi server khi cập nhật trạng thái voucher' });
   }
 });
 
-// 8. DỌN DẠNG: XÓA VOUCHER (user tự xóa voucher đã hết hạn/đã dùng)
+// 5. USER XÓA VOUCHER KHỎI KHO
 router.delete('/:code', checkAuth, async (req, res) => {
   try {
     const { code } = req.params;
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ msg: 'Không tìm thấy tài khoản!' });
+    if (!user) return res.status(404).json({ msg: 'Không tìm thấy user' });
 
     const voucherIndex = user.vouchers.findIndex(v => v.code === code.toUpperCase());
-    if (voucherIndex === -1) {
-      return res.status(404).json({ msg: 'Không tìm thấy voucher!' });
-    }
+    if (voucherIndex === -1) return res.status(404).json({ msg: 'Voucher không tồn tại' });
 
-    const removed = user.vouchers.splice(voucherIndex, 1)[0];
+    // Xóa voucher khỏi mảng
+    user.vouchers.splice(voucherIndex, 1);
     await user.save();
 
-    res.json({ msg: 'Đã xóa voucher', voucher: removed });
+    res.json({ 
+      msg: 'Voucher đã được xóa',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        walletBalance: user.walletBalance,
+        luckySpins: user.luckySpins,
+        vouchers: user.vouchers.filter(v => !v.isUsed)
+      }
+    });
   } catch (err) {
     console.error("Lỗi xóa voucher:", err);
-    res.status(500).json({ msg: 'Lỗi server khi xóa voucher.' });
+    res.status(500).json({ msg: 'Lỗi server khi xóa voucher' });
   }
 });
 

@@ -87,13 +87,23 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          <button 
-            disabled={product.countInStock <= 0}
-            onClick={() => addToCart(product, quantity)}
-            className="w-full bg-red-600 hover:bg-black text-white font-black py-5 rounded-2xl uppercase tracking-[0.2em] transition-all shadow-lg hover:shadow-red-600/20 disabled:bg-gray-300"
-          >
-            {product.countInStock > 0 ? 'Thêm vào giỏ hàng' : 'Hết hàng'}
-          </button>
+    <button 
+      disabled={product.countInStock <= 0 || !Number.isInteger(quantity) || quantity < 1 || quantity > (product.countInStock || 0)}
+      onClick={() => {
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > (product.countInStock || 0)) {
+          alert(`Số lượng không hợp lệ! Vui lòng chọn từ 1 đến ${product.countInStock || 0}`);
+          return;
+        }
+        const productToAdd = {
+          ...product,
+          quantity: quantity
+        };
+        addToCart(productToAdd, quantity);
+      }}
+      className="w-full bg-red-600 hover:bg-black text-white font-black py-5 rounded-2xl uppercase tracking-[0.2em] transition-all shadow-lg hover:shadow-red-600/20 disabled:bg-gray-300"
+    >
+      {product.countInStock > 0 ? 'Thêm vào giỏ hàng' : 'Hết hàng'}
+    </button>
 
           {/* Cam kết uy tín */}
           <div className="grid grid-cols-3 gap-4 mt-8">

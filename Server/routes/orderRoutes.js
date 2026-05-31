@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
 const User = require('../models/User');
+const Product = require('../models/Product'); // Thêm import Product model
 const { checkAuth } = require('../middleware/auth'); // Middleware kiểm tra Token
 
 router.post('/', checkAuth, async (req, res) => {
@@ -64,14 +65,23 @@ router.post('/', checkAuth, async (req, res) => {
     // LƯU TÀI KHOẢN (Đã cập nhật cả tiền ví và số lượt quay cùng lúc)
     await userDoc.save();
 
-    res.status(201).json({ order: savedOrder, newBalance: userDoc.walletBalance });
+    // FIX: Cập nhật tồn kho trước khi trả response (đã bị đặt sai vị trí)
+    const updateStockPromises = normalizedOrderItems.map(item => 
+      Product.findByIdAndUpdate(item.product, { 
+        $inc: { countInStock: -item.quantity, sold: item.quantity } 
+      })
+    );
+    await Promise.all(updateStockPromises);
+
+    res.status(201).json({ 
+      order: savedOrder, 
+      newBalance: userDoc.walletBalance,
+      updatedStocks: true 
+    });
   } catch (err) {
     console.error('Create order error:', err);
     res.status(500).json({ msg: 'Lỗi tạo đơn hàng', error: err?.message });
   }
-    await Product.findByIdAndUpdate(item.product, {
-      $inc: { countInStock: -item.quantity, sold: item.quantity }
-    });
 });
 
 // 2. LẤY TẤT CẢ ĐƠN HÀNG (DÀNH CHO ADMIN)

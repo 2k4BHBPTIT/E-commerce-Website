@@ -31,13 +31,12 @@ import ProfileOrders from '../pages/ProfileOrder';
 import ProfileVouchers from '../pages/ProfileVoucher';
 import Profile from '../pages/Profile';
 import LiveChat from '../components/LiveChat';
-import PlayGame from '../pages/PlayGame';
 import ProfileDeposit from '../pages/ProfileDeposit';
 import ScrollToTop from '../components/ScrollToTop';
 import AuthPage from '../pages/AuthPage';
 
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   withCredentials: true
 });
 
@@ -110,7 +109,6 @@ function App() {
     <Route path="/register" element={<AuthPage />} />
     <Route path="/profile/deposit" element={<ProfileDeposit />} />
     <Route path="/vong-quay" element={<LuckyWheel />} />
-    <Route path="/choi-game" element={<PlayGame />} />
     <Route path="/profile" element={<Profile />} />
     <Route path="/profile/orders" element={<ProfileOrders />} />
     <Route path="/profile/vouchers" element={<ProfileVouchers />} />

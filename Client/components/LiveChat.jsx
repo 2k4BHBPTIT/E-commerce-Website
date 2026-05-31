@@ -46,7 +46,7 @@ const LiveChat = () => {
     fetchHistory();
 
     // Khởi tạo và tham gia đúng phòng Socket
-    socketRef.current = io('http://localhost:5000');
+    socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
     socketRef.current.emit('join_chat', chatUser.id);
 
     // Lắng nghe tin nhắn mới trả về đúng phòng này

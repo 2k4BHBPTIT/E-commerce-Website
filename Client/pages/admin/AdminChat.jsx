@@ -29,7 +29,7 @@ const AdminChat = () => {
 
   useEffect(() => {
     fetchInbox();
-    socketRef.current = io('http://localhost:5000');
+    socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
 
     // Lắng nghe khi có khách nhắn tin mới
     socketRef.current.on('admin_receive_message', (newMsg) => {

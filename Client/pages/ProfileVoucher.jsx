@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import API from '../api/axios';
 
 const ProfileVouchers = () => {
-  const { user } = useContext(AuthContext);
+  const { user, setUser } = useContext(AuthContext);
   const [copiedCode, setCopiedCode] = useState(null);
   const [vouchers, setVouchers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,8 +50,13 @@ const ProfileVouchers = () => {
   const handleDelete = async (code) => {
     if (!window.confirm('Xóa voucher này?')) return;
     try {
-      await API.delete(`/vouchers/${code}`);
+      const res = await API.delete(`/vouchers/${code}`);
       setVouchers(v => v.filter(voucher => voucher.code !== code));
+      
+      // Đồng bộ lại AuthContext để Header cập nhật số lượng
+      if (res.data.user) {
+        setUser(res.data.user);
+      }
     } catch (err) {
       alert('Không thể xóa voucher: ' + (err.response?.data?.msg || err.message));
     }

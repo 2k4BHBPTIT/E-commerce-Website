@@ -59,7 +59,7 @@ router.put('/admin/approve/:id', checkAuth, checkAdmin, async (req, res) => {
     await tx.save();
 
     // CỘNG TIỀN VÀO VÍ KHÁCH HÀNG
-    await User.findByIdAndUpdate(tx.user, { $inc: { wallet: tx.amount } });
+    await User.findByIdAndUpdate(tx.user, { $inc: { walletBalance: tx.amount } });
 
     res.json({ msg: 'Duyệt thành công, đã cộng tiền cho khách!' });
   } catch (err) {

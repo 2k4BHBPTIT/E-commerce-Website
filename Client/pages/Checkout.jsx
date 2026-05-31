@@ -8,7 +8,7 @@ import axios from 'axios';
 
 const Checkout = () => {
   const { cartItems, totalPrice, clearCart } = useContext(CartContext);
-  const { user } = useContext(AuthContext);
+  const { user, setUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [isOrdered, setIsOrdered] = useState(false);
@@ -116,30 +116,79 @@ const Checkout = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!shippingInfo.province || !shippingInfo.district || !shippingInfo.ward) {
-      return alert("Vui lòng chọn đầy đủ Tỉnh/Quận/Phường!");
+    // Frontend validation
+    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.province || !shippingInfo.district || !shippingInfo.ward) {
+      return alert('Vui lòng nhập đầy đủ thông tin giao hàng!');
+    }
+    if (!/^\d{10}$/.test(shippingInfo.phone)) {
+      return alert('Số điện thoại phải có 10 chữ số!');
+    }
+    if (!cartItems || cartItems.length === 0) {
+      return alert('Giỏ hàng trống!');
     }
 
-    const pName = provinces.find(p => p.code == shippingInfo.province)?.name;
-    const dName = districts.find(d => d.code == shippingInfo.district)?.name;
-    const wName = wards.find(w => w.code == shippingInfo.ward)?.name;
-    const fullAddress = `${shippingInfo.detail}, ${wName}, ${dName}, ${pName}`;
+    // Final validation: check stock and calculate
+    const invalidItems = cartItems.filter(item => 
+      !item._id || 
+      !Number.isInteger(item.quantity) || 
+      item.quantity < 1 ||
+      item.price == null ||
+      item.price < 0
+    );
+    if (invalidItems.length > 0) {
+      return alert('Giỏ hàng chứa sản phẩm không hợp lệ. Vui lòng kiểm tra lại!');
+    }
 
     try {
       if (paymentMethod === 'VNPay' || paymentMethod === 'MoMo') {
         alert(`Hệ thống đang chuyển hướng bạn sang cổng ${paymentMethod}...`);
+
+        // Đánh dấu voucher đã sử dụng trước khi chuyển hướng
+        if (appliedVoucher) {
+          try {
+            const vRes = await API.put(`/vouchers/use/${appliedVoucher}`);
+            // Cập nhật lại user context để đồng bộ số lượng voucher trong Header
+            if (vRes.data.user) {
+              setUser(vRes.data.user);
+            }
+          } catch (vErr) {
+            console.error("Lỗi khi đánh dấu voucher đã sử dụng:", vErr);
+          }
+        }
+
         const res = await API.post('/payments/create-url', { amount: finalAmount, bankCode: paymentMethod });
         window.location.href = res.data.payUrl;
         return;
       }
 
-      const res = await API.post('/orders', {
+      // Construct full address from shipping info
+      const provinceName = provinces.find(p => p.code === shippingInfo.province)?.name || '';
+      const districtName = districts.find(d => d.code === shippingInfo.district)?.name || '';
+      const wardName = wards.find(w => w.code === shippingInfo.ward)?.name || '';
+      const fullAddress = `${shippingInfo.detail}, ${wardName}, ${districtName}, ${provinceName}`.trim();
+
+      const orderData = {
         orderItems: cartItems,
         shippingAddress: fullAddress,
         phone: shippingInfo.phone,
         paymentMethod: paymentMethod,
-        totalPrice: finalAmount, 
-      });
+        totalPrice: finalAmount,
+      };
+
+      const res = await API.post('/orders', orderData);
+
+      // Đánh dấu voucher đã sử dụng nếu có
+      if (appliedVoucher) {
+        try {
+          const vRes = await API.put(`/vouchers/use/${appliedVoucher}`);
+          // Cập nhật lại user context để đồng bộ số lượng voucher trong Header
+          if (vRes.data.user) {
+            setUser(vRes.data.user);
+          }
+        } catch (vErr) {
+          console.error("Lỗi khi đánh dấu voucher đã sử dụng:", vErr);
+        }
+      }
 
       setOrderInfo(res.data.order);
       setIsOrdered(true); 
@@ -158,12 +207,17 @@ const Checkout = () => {
     try {
       const res = await API.post('/vouchers/apply', {
         code: voucherCode,
-        cartTotal: totalPrice
+        orderTotal: totalPrice
       });
-      setDiscount(res.data.discountAmount);
-      setAppliedVoucher(res.data.code);
-      setVoucherMsg({ text: res.data.msg, type: 'success' });
-      setVoucherCode(''); // Clear input after successful apply
+      
+      const discountAmount = Number(res.data.discount) || 0;
+      setDiscount(discountAmount);
+      setAppliedVoucher(res.data.voucher?.code || voucherCode);
+      setVoucherMsg({ 
+        text: res.data.msg || 'Áp dụng mã giảm giá thành công!', 
+        type: 'success' 
+      });
+      setVoucherCode(''); 
     } catch (error) {
       setDiscount(0);
       setAppliedVoucher(null);
@@ -258,7 +312,15 @@ const Checkout = () => {
                 {user.savedAddresses.map((addr, index) => (
                   <label key={index} className="cursor-pointer">
                     <input type="radio" name="addressBook" className="peer sr-only"
-                      onChange={() => setShippingInfo({ ...shippingInfo, detail: addr.address, phone: addr.phone, name: addr.name })} />
+                      onChange={() => setShippingInfo({ 
+                        ...shippingInfo, 
+                        name: addr.name,
+                        phone: addr.phone,
+                        province: addr.province || '',
+                        district: addr.district || '',
+                        ward: addr.ward || '',
+                        detail: addr.detail || addr.address
+                      })} />
                     <div className="px-4 py-2 border-2 border-white bg-white rounded-lg shadow-sm peer-checked:border-red-600 peer-checked:bg-red-600 peer-checked:text-white transition-all">
                       <span className="font-bold block text-sm">{addr.type}</span>
                       <span className="text-xs opacity-80">{addr.phone}</span>

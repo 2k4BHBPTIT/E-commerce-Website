@@ -2,7 +2,13 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-const getJwtSecret = () => process.env.JWT_SECRET || 'YOUR_SECRET_KEY';
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === 'YOUR_SECRET_KEY') {
+    console.warn('CẢNH BÁO: JWT_SECRET chưa được cấu hình trong môi trường!');
+  }
+  return secret || 'fallback-secret-change-in-production';
+};
 
 const setAuthCookie = (res, token) => {
   res.cookie('token', token, {
@@ -33,7 +39,7 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+password');
     if (!user) return res.status(400).json({ msg: 'Tài khoản không tồn tại' });
 
     const isMatch = await bcrypt.compare(password, user.password);

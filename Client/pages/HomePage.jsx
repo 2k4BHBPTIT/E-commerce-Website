@@ -23,8 +23,12 @@ const HomePage = ({ products, searchTerm, dealProducts }) => {
 
   const brands = [
     { name: 'Allin Cue', logo: 'https://xbilliard.vn/wp-content/uploads/2024/11/Allin-Cue.png' },
-    { name: 'Peri', logo: 'https://via.placeholder.com/150x80?text=Peri' },
-    { name: 'Rhino', logo: 'https://via.placeholder.com/150x80?text=Rhino' },
+    { name: 'Peri', logo: 'https://xbilliard.vn/wp-content/uploads/2024/11/Peri.png' },
+    { name: 'Rhino', logo: 'https://xbilliard.vn/wp-content/uploads/2024/11/Rhino.png' },
+    { name: 'Predator', logo: 'https://xbilliard.vn/wp-content/uploads/2023/06/predator.png' },
+    { name: 'Fury', logo: 'https://xbilliard.vn/wp-content/uploads/2023/06/fury.png' },
+    { name: 'Wolf', logo: 'https://xbilliard.vn/wp-content/uploads/2024/11/Wolf.png' },
+    { name: 'Mit', logo: 'https://xbilliard.vn/wp-content/uploads/2023/06/mitcues.png' },
   ];
 
   useEffect(() => {

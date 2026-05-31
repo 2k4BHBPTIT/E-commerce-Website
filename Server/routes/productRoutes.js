@@ -67,58 +67,62 @@ router.get('/admin/all', checkAuth, async (req, res) => {
 
 router.put('/:id', checkAuth, checkAdmin, async (req, res) => {
   try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    // Security: Không cho phép cập nhật trực tiếp các trường nhạy cảm qua API này
+    const allowedFields = ['name', 'category', 'price', 'importPrice', 'description', 
+                          'image', 'stock', 'countInStock', 'sold', 'isFeatured', 'rating', 'numReviews'];
+    
+    const filteredData = {};
+    Object.keys(updateData).forEach(key => {
+      if (allowedFields.includes(key)) {
+        filteredData[key] = updateData[key];
+      }
+    });
+
     const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      { $set: req.body }, // Tự động lấy tất cả các trường gửi lên (Bao gồm cả countInStock)
-      { new: true }
-    );
+      id,
+      { $set: filteredData },
+      { new: true, runValidators: true }
+    ).select('-importPrice');
+
+    if (!updatedProduct) return res.status(404).json({ msg: 'Không tìm thấy sản phẩm' });
+
     res.json(updatedProduct);
   } catch (err) {
     console.error("Lỗi khi cập nhật sản phẩm:", err);
     res.status(500).json({ msg: 'Lỗi cập nhật', error: err.message });
   }
-});
+})
 
 // API XÓA SẢN PHẨM (Nằm TRÊN module.exports)
-router.delete('/:id', checkAuth, async (req, res) => {
-  try {
-    await Product.findByIdAndDelete(req.params.id);
-    await SystemLog.create({
-      admin: req.user.id,
-      action: 'DELETE_PRODUCT',
-      details: `Đã xóa sản phẩm ID: ${req.params.id}`,
-      ipAddress: req.ip
-    });
-    res.json({ msg: 'Đã xóa sản phẩm' });
-  } catch (err) {
-    res.status(500).json({ msg: 'Lỗi khi xóa sản phẩm' });
-  }
-});
-
-router.post('/', checkAuth, checkAdmin, async (req, res) => {
-  try {
-    // Thêm countInStock vào đây
-    const { name, price, oldPrice, image, brand, category, description, countInStock, isFeatured } = req.body;
-
-    const newProduct = new Product(req.body);
-
-    await newProduct.save();
-    await SystemLog.create({
-      admin: req.user.id,
-      action: 'CREATE_PRODUCT',
-      details: `Đã tạo sản phẩm ID: ${newProduct._id}`,
-      ipAddress: req.ip
-    });
-    res.status(201).json(newProduct);
-  } catch (err) {
-    console.error("Lỗi khi tạo sản phẩm:", err);
-    res.status(500).json({ msg: 'Lỗi tạo sản phẩm', error: err.message });
-  }
-});
-
-router.get('/:id', async (req, res) => {
+router.delete('/:id', checkAuth, checkAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ msg: 'Không tìm thấy sản phẩm' });
+
+    await SystemLog.create({
+      admin: req.user?.id,
+      action: 'DELETE_PRODUCT',
+      details: `Đã xóa sản phẩm: ${product.name} (ID: ${req.params.id})`,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent') || 'Unknown'
+    });
+
+    await Product.findByIdAndDelete(req.params.id);
+    res.json({ msg: 'Đã xóa sản phẩm', productId: req.params.id });
+  } catch (err) {
+    console.error("Lỗi khi xóa sản phẩm:", err);
+    res.status(500).json({ msg: 'Lỗi khi xóa sản phẩm', error: err.message });
+  }
+});
+module.exports = router;
+
+// GET single product
+router.get('/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).select('-importPrice');
     if (!product) return res.status(404).json({ msg: 'Không tìm thấy sản phẩm' });
     res.json(product);
   } catch (err) {
@@ -126,43 +130,40 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/:id/reviews', checkAuth, async (req, res) => {
+// POST create product (Admin)
+router.post('/', checkAuth, checkAdmin, async (req, res) => {
   try {
-    const { rating, comment } = req.body;
-    const product = await Product.findById(req.params.id);
-
-    if (!product) return res.status(404).json({ msg: 'Không tìm thấy sản phẩm' });
-
-    // Kiểm tra xem user này đã bình luận sản phẩm này chưa
-    const alreadyReviewed = product.reviews.find(
-      (r) => r.user.toString() === req.user.id.toString()
-    );
-    if (alreadyReviewed) {
-      return res.status(400).json({ msg: 'Bạn đã đánh giá sản phẩm này rồi!' });
+    const { name, price, category, description, countInStock, isFeatured } = req.body;
+    
+    if (!name || !price || !category) {
+      return res.status(400).json({ msg: 'Vui lòng nhập tên, giá và danh mục' });
     }
 
-    // Tạo bình luận mới
-    const review = {
-      user: req.user.id,
-      name: req.user.name || 'Khách hàng', // Lấy tên từ token
-      rating: Number(rating),
-      comment,
-    };
+    const newProduct = new Product({
+      name,
+      category,
+      price,
+      importPrice: req.body.importPrice || 0,
+      description: description || '',
+      countInStock: countInStock || 0,
+      stock: countInStock || 0,
+      image: req.body.image || '/uploads/no-image.jpg',
+      isFeatured: isFeatured || false
+    });
 
-    // Đẩy vào mảng reviews của sản phẩm
-    product.reviews.push(review);
-    product.numReviews = product.reviews.length;
-    // Tính lại điểm trung bình
-    product.rating = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
-
-    await product.save();
-    res.status(201).json({ msg: 'Thêm đánh giá thành công!' });
-
+    await newProduct.save();
+    
+    await SystemLog.create({
+      admin: req.user?.id,
+      action: 'CREATE_PRODUCT',
+      details: `Đã tạo sản phẩm ID: ${newProduct._id}`,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent') || 'Unknown'
+    });
+    
+    res.status(201).json(newProduct);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: 'Lỗi server khi thêm đánh giá' });
+    console.error("Lỗi khi tạo sản phẩm:", err);
+    res.status(500).json({ msg: 'Lỗi tạo sản phẩm', error: err.message });
   }
 });
-
-
-module.exports = router;
