@@ -3,59 +3,59 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
-const http = require('http'); // Import module có sẵn của Node.js
+const http = require('http');
 const { Server } = require('socket.io');
 
-// Khởi tạo app
+// TỐI ƯU 1: Require Model một lần duy nhất ở đây
+const Chat = require('./models/chat'); 
+const connectDB = require('./config/db');
+
 const app = express();
 const server = http.createServer(app);
+
+// Danh sách các URL được phép truy cập
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.FRONTEND_URL 
+].filter(Boolean);
+
+// TỐI ƯU 2: Cấp quyền CORS cho Socket.io giống hệt Express
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:5173"],
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 const rooms = {};
 
-// Kết nối DB SAU khi app được tạo (để tránh double-connect)
-const connectDB = require('./config/db');
-
 io.on('connection', (socket) => {
   socket.on('join_chat', (userId) => {
-    socket.join(`chat_${userId}`); // Khách tự vào phòng của mình, Admin cũng vào phòng này để rep
+    socket.join(`chat_${userId}`);
   });
 
-  // Khách nhắn tin
   socket.on('send_chat_message', async (data) => {
-    const Chat = require('./models/chat');
+    // Đã bỏ dòng require Chat ở đây
     const newMsg = new Chat({ userId: data.userId, userName: data.userName, message: data.message, isAdmin: false });
     await newMsg.save();
     
-    io.emit('admin_receive_message', newMsg); // Gửi cho Admin (để hiện Inbox)
-    io.to(`chat_${data.userId}`).emit('receive_message', newMsg); // CHỈ gửi lại cho đúng người nhắn
+    io.emit('admin_receive_message', newMsg);
+    io.to(`chat_${data.userId}`).emit('receive_message', newMsg);
   });
 
-  // Admin nhắn tin
   socket.on('admin_reply_message', async (data) => {
-    const Chat = require('./models/chat');
-    // data: { userId, message }
     const newMsg = new Chat({ userId: data.userId, message: data.message, isAdmin: true });
     await newMsg.save();
     
-    // Phát lại vào phòng của đúng ông khách đó
     io.to(`chat_${data.userId}`).emit('receive_message', newMsg);
   });
 });
 
-// Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
+  origin: allowedOrigins, // Tái sử dụng mảng đã lọc
   credentials: true,
 }));
 
@@ -79,6 +79,7 @@ app.use('/api/suppliers', require('./routes/supplierRoutes'));
 app.use('/api/transactions', require('./routes/transactionRoutes'));
 app.use('/api/settings', require('./routes/settingRoutes'));
 app.use('/api/logs', require('./routes/logRoutes'));
+app.use('/api/tournaments', require('./routes/tournamentRoutes'));
 
 // Khởi động server
 const startServer = async () => {

@@ -18,12 +18,16 @@ import AdminUsers from '../pages/admin/AdminUser';
 import AdminInventory from '../pages/admin/Inventory';
 import AdminDeals from '../pages/admin/AdminDeals';
 import AdminSuppliers from '../pages/admin/AdminSuppliers';
+import AdminTournaments from '../pages/admin/AdminTournaments';
+
 import HomeBuilder from '../pages/admin/HomeBuilder';
 import SystemSetting from '../pages/admin/SystemSetting';
 import SystemLogs from '../pages/admin/SystemLogs';
+
 import Checkout from '../pages/Checkout';
 import AboutClub from '../pages/AboutClub';
 import NewsPage from '../pages/NewsPage';
+import TournamentPage from '../pages/TournamentPage';
 import FloatingMenu from '../components/FloatingMenu';
 import LuckyWheel from '../pages/LuckyWheel';
 import LuckyWidget from '../components/LuckyWidget';
@@ -114,6 +118,7 @@ function App() {
     <Route path="/profile/vouchers" element={<ProfileVouchers />} />
     <Route path="/ve-chung-toi" element={<AboutClub />} />
     <Route path="/tin-tuc" element={<NewsPage />} />
+    <Route path="/tournament" element={<TournamentPage />} />
   </Route>
 
   {/* ===== CÁC ROUTE CỦA ADMIN ===== */}
@@ -128,6 +133,7 @@ function App() {
           <Route path="chat" element={<AdminChat />} /> 
           <Route path="employees" element={<AdminUsers />} /> 
           <Route path="suppliers" element={<AdminSuppliers />} />
+          <Route path="tournaments" element={<AdminTournaments />} />
           
           <Route path="attendance" element={<div className="p-6 font-bold text-xl">🚧 Chấm công đang xây dựng...</div>} />
           <Route path="home-builder" element={<HomeBuilder />} />

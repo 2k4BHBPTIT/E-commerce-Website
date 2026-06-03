@@ -103,14 +103,33 @@ const HomePage = ({ products, searchTerm, dealProducts }) => {
 
     // 5. KHỐI THƯƠNG HIỆU
     brands: (
-      <section key="brands" className="bg-white p-8 rounded-lg shadow-sm mt-10">
+      <section key="brands" className="bg-white p-8 rounded-lg shadow-sm mt-10 overflow-hidden">
         <h2 className="text-center text-lg font-black uppercase mb-8 text-gray-400 tracking-[0.2em]">— THƯƠNG HIỆU NỔI BẬT —</h2>
-        <div className="flex overflow-x-auto gap-12 pb-4 no-scrollbar items-center justify-start md:justify-center">
-          {brands.map((brand, index) => (
-            <div key={index} className="flex-shrink-0 grayscale hover:grayscale-0 opacity-60 hover:opacity-100 transition-all duration-300">
-              <img src={brand.logo} alt={brand.name} className="h-10 md:h-14 w-auto object-contain" />
-            </div>
-          ))}
+        <style>{`
+          @keyframes smoothScroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+          .brands-track {
+            display: flex;
+            gap: 3rem;
+            animation: smoothScroll 20s linear infinite;
+            width: max-content;
+          }
+          .brands-track:hover {
+            animation-play-state: paused;
+          }
+        `}</style>
+        <div className="relative">
+          <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-white to-transparent z-10"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-white to-transparent z-10"></div>
+          <div className="brands-track">
+            {[...brands, ...brands].map((brand, index) => (
+              <div key={index} className="flex-shrink-0 grayscale hover:grayscale-0 opacity-60 hover:opacity-100 transition-all duration-300">
+                <img src={brand.logo} alt={brand.name} className="h-10 md:h-14 w-auto object-contain" />
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     )

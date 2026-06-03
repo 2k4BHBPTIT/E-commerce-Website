@@ -262,6 +262,7 @@ const Header = ({ searchTerm, setSearchTerm, handleSearch }) => {
             </li>
             <li><Link to="/ve-chung-toi" className="block py-3 px-4 hover:bg-black transition">Về CLB</Link></li>
             <li><Link to="/tin-tuc" className="block py-3 px-4 hover:bg-black transition">Tin Tức</Link></li>
+            <li><Link to="/tournament" className="block py-3 px-4 hover:bg-black transition text-yellow-300 font-black">🏆 Giải Đấu</Link></li>
             <Link to="/vong-quay" className="block py-3 px-4 text-yellow-300 hover:text-white hover:bg-black transition font-black animate-pulse">
               🎁 QUAY THƯỞNG
             </Link>
@@ -285,7 +286,7 @@ const Header = ({ searchTerm, setSearchTerm, handleSearch }) => {
                 placeholder="Tìm kiếm..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border border-gray-200 rounded-full py-2 px-4 outline-none focus:border-red-600 text-sm font-bold"
+                className="w-full border border-gray-200 rounded-full py-2 px-4 outline-none focus:border-red-600 text-sm font-bold text-gray-800 placeholder-gray-400"
               />
               <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80">
                 <Search size={18} />
@@ -307,6 +308,7 @@ const Header = ({ searchTerm, setSearchTerm, handleSearch }) => {
             <li className="border-b pb-2"><Link to="/category/dich-vu" onClick={() => setIsMenuOpen(false)}>Dịch Vụ</Link></li>
             <li className="border-b pb-2"><Link to="/ve-chung-toi" onClick={() => setIsMenuOpen(false)}>Về CLB</Link></li>
             <li className="border-b pb-2"><Link to="/tin-tuc" onClick={() => setIsMenuOpen(false)}>Tin Tức</Link></li>
+            <li className="border-b pb-2"><Link to="/tournament" onClick={() => setIsMenuOpen(false)} className="text-yellow-600 font-black">🏆 Giải Đấu</Link></li>
             <li className="border-b pb-2"><Link to="/lien-he" onClick={() => setIsMenuOpen(false)}>Liên Hệ</Link></li>
             <Link to="/vong-quay" className="block py-3 px-4 text-yellow-300 hover:text-white hover:bg-black transition font-black animate-pulse">
               🎁 QUAY THƯỞNG

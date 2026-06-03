@@ -2,7 +2,7 @@ import { useState, useContext } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Package, ShoppingCart, 
-  Users, CalendarClock, Settings, LogOut, Menu, Wallet 
+  Users, CalendarClock, Settings, LogOut, Menu, Wallet, Trophy
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 
@@ -22,6 +22,7 @@ const AdminLayout = () => {
       { path: '/admin/chat', name: 'Hòm Thư', icon: <Package size={20} /> },
       { path: '/admin/employees', name: 'Người dùng', icon: <Users size={20} /> },
       { path: '/admin/suppliers', name: 'Quản lý Nhà cung cấp', icon: <Package size={20} /> },
+      { path: '/admin/tournaments', name: 'Quản lý Giải đấu', icon: <Trophy size={20} /> },
       { path: '/admin/attendance', name: 'Chấm công', icon: <CalendarClock size={20} /> },
       { path: '/admin/settings', name: 'Cài đặt hệ thống', icon: <Settings size={20} /> },
       { path: '/admin/home-builder', name: 'Giao diện trang chủ', icon: <LayoutDashboard size={20} />},

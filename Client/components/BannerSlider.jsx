@@ -5,8 +5,23 @@ import 'swiper/css/navigation';
 import 'swiper/css/effect-fade'; 
 import { Autoplay, Pagination, Navigation, EffectFade } from 'swiper/modules';
 import { ChevronRight } from 'lucide-react'; 
+import { useNavigate } from 'react-router-dom';
 
 const BannerSlider = () => {
+  const navigate = useNavigate();
+
+  const handleBtnClick = (btnText) => {
+    if (btnText === 'XEM SẢN PHẨM') {
+      navigate('/category/cues');
+    } else if (btnText === 'TÌM HIỂU THÊM') {
+      navigate('/tournament');
+    } else if (btnText === 'ĐẶT BÀN NGAY') {
+      navigate('/ve-chung-toi#booking');
+    } else {
+      console.log(`Button clicked: ${btnText}`);
+    }
+  };
+
   const slides = [
     {
       id: 1,
@@ -129,7 +144,7 @@ const BannerSlider = () => {
                 </div>
                 
                 {/* Nút bấm hình viên thuốc (Pill) rực sáng */}
-                <button className="flex-shrink-0 bg-red-600 text-white font-bold rounded-full px-8 py-4 transition-all duration-300 flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:bg-white hover:text-red-600 hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] group/btn mb-4 md:mb-0">
+                <button onClick={() => handleBtnClick(slide.btnText)} className="flex-shrink-0 bg-red-600 text-white font-bold rounded-full px-8 py-4 transition-all duration-300 flex items-center gap-2 shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:bg-white hover:text-red-600 hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] group/btn mb-4 md:mb-0">
                   <span className="uppercase tracking-wide text-sm">{slide.btnText}</span>
                   <ChevronRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
                 </button>
