@@ -2,7 +2,14 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
+  name: { 
+    type: String, 
+    required: [true, 'Vui lòng nhập họ tên'],
+    trim: true,
+    minlength: [2, 'Tên phải có ít nhất 2 ký tự'],
+    maxlength: [50, 'Tên không được quá 50 ký tự'],
+    match: [/^[a-zA-ZÀ-ỹ\s]+$/, 'Tên chỉ được chứa chữ cái và khoảng trắng']
+  },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String, required: true, select: false },
   role: { type: String, default: 'user', enum: ['user', 'admin'] },
