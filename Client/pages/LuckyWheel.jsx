@@ -85,7 +85,7 @@ const LuckyWheel = () => {
 
   const handleCloseModal = () => {
     setPrizeWin(null);
-    window.location.reload(); 
+    setIsCopied(false);
   };
 
   return (
@@ -255,3 +255,4 @@ const LuckyWheel = () => {
 };
 
 export default LuckyWheel;
+
