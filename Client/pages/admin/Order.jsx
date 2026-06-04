@@ -63,6 +63,7 @@ return (
           <thead>
             <tr className="bg-gray-900 text-white uppercase text-xs">
               <th className="p-4 rounded-tl-xl">Khách hàng</th>
+              <th className="p-4">Địa chỉ</th>
               <th className="p-4">Sản phẩm</th>
               <th className="p-4">Tổng tiền & Thanh toán</th>
               <th className="p-4">Trạng thái</th>
@@ -79,7 +80,12 @@ return (
                   <span className="text-xs font-normal text-gray-500">{order.phone}</span>
                 </td>
                 
-                {/* 2. Sản phẩm */}
+                {/* 2. Địa chỉ */}
+                <td className="p-4 text-xs font-bold text-gray-700">
+                  {order.shippingAddress}
+                </td>
+                
+                {/* 3. Sản phẩm */}
                 <td className="p-4 text-sm max-w-xs">
                   {order.orderItems?.map(i => (
                     <div key={i._id || i.product} className="truncate" title={i.name}>
