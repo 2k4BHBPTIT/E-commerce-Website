@@ -15,10 +15,11 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://billiardshop.onrender.com/
+        value: https://billiardshop.vercel.app/
       - key: GEMINI_API_KEY
         sync: false
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASS
         sync: false
+
