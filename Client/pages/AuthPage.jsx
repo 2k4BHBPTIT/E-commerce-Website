@@ -33,6 +33,8 @@ const AuthPage = () => {
       else if (view === 'register') {
         // XỬ LÝ ĐĂNG KÝ
         if (formData.name.trim().length < 2) throw new Error('Họ tên phải có ít nhất 2 ký tự!');
+        if (formData.name.trim().length > 50) throw new Error('Họ tên không được quá 50 ký tự!');
+        if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(formData.name.trim())) throw new Error('Họ tên chỉ được chứa chữ cái và khoảng trắng!');
         if (formData.password.length < 6) throw new Error('Mật khẩu tối thiểu 6 ký tự!');
         if (formData.password !== formData.confirmPassword) throw new Error('Mật khẩu xác nhận không khớp!');
         
